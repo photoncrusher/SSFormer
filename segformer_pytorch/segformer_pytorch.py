@@ -67,6 +67,7 @@ class SSFormer(nn.Module):
         num_classes = 1
     ):
         super().__init__()
+        W, H = 352, 352
         dims, heads, ff_expansion, reduction_ratio, num_layers = map(partial(cast_tuple, depth = 4), (dims, heads, ff_expansion, reduction_ratio, num_layers))
         assert all([*map(lambda t: len(t) == 4, (dims, heads, ff_expansion, reduction_ratio, num_layers))]), 'only four stages are allowed, all keyword arguments must be either a single value or a tuple of 4 values'
 
@@ -90,8 +91,11 @@ class SSFormer(nn.Module):
         ) for i, dim in enumerate(dims)])
 
         self.linear = nn.Linear(decoder_dim * 2, decoder_dim)
-        self.final_linear = nn.Linear(decoder_dim, num_classes)
-        self.resample = nn.Upsample(scale_factor = 4)
+        self.linear1 = nn.Linear(decoder_dim, num_classes)
+        self.linear2 = nn.Linear(int(H/4), H)
+        self.linear3 = nn.Linear(int(W/4), W)
+        # self.final_linear = nn.Linear(int( W * H * decoder_dim / 16), int(W * H * num_classes))
+        # self.resample = nn.Upsample(scale_factor = 4)
         
     def forward(self, x):
         layer_outputs = self.pvt_v2(x)
@@ -105,7 +109,18 @@ class SSFormer(nn.Module):
                 le_out = torch.cat((le_out, le(output)), dim=1)
                 le_out = self.linear(le_out.permute(0,2,3,1))
                 le_out = le_out.permute(0,3,1,2)
-        le_out = self.final_linear(le_out.permute(0,2,3,1)).permute(0,3,1,2)
-        le_out = self.resample(le_out)
+        le_out = le_out.permute(0,2,3,1)
+        le_out = self.linear1(le_out)
+        le_out = le_out.permute(0,2,3,1)
+        le_out = self.linear2(le_out)
+        le_out = le_out.permute(0,2,3,1)
+        le_out = self.linear2(le_out)
+
+        # le_out = self.final_linear(le_out)
+        # le_out = torch.reshape(le_out, (1,1,352, 352))
+        # le_out = torch.reshape(le_out, le_out)
+        # le_out = torch.flatten(le_out)
+        # self.linear(le_out)
+        # le_out = self.resample(le_out)
 
         return le_out

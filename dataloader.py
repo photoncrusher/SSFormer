@@ -17,11 +17,11 @@ class DataLoaderSegmentation(data.Dataset):
             img_path = self.img_files[index]
             mask_path = self.mask_files[index]
             data = cv2.imread(img_path)
-            data = cv2.resize(data, (224, 224))
-            label = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
-            label = cv2.resize(label, (224, 224))
-            label = np.expand_dims(label, axis=2)
-
+            data = cv2.resize(data, (352, 352))
+            label = cv2.imread(mask_path, 0)
+            label = cv2.resize(label, (352, 352))
+            # label = np.expand_dims(label, axis=2)
+            label = label[:, :, np.newaxis]
             return torch.from_numpy(data).float(), torch.from_numpy(label).float()
 
     def __len__(self):

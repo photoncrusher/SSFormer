@@ -1,13 +1,15 @@
+import time
+import tqdm
 from segformer_pytorch import segformer_pytorch
 import torch
 import torch.nn.functional as F
 from dataloader import DataLoaderSegmentation
 import datetime
 from torch.utils.data import DataLoader
-
+from cfg import *
 from torch.utils.tensorboard import SummaryWriter
 
-model = segformer_pytorch.SSFormer()
+model = segformer_pytorch.SSFormer().cuda(gpu_device)
 
 def loss_fn(pred, mask):
     weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
@@ -21,46 +23,48 @@ def loss_fn(pred, mask):
 
     return (wbce + wiou).mean()
 
-optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
+optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=decay_rate)
 TRAIN_PATH = "/hdd/quangdd/src/dataset_pranet"
 train_dataset = DataLoaderSegmentation(TRAIN_PATH)
-training_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-
+training_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 def train_one_epoch(epoch_index, tb_writer):
     running_loss = 0.
     last_loss = 0.
 
-    # Here, we use enumerate(training_loader) instead of
-    # iter(training_loader) so that we can track the batch
-    # index and do some intra-epoch reporting
-    for i, data in enumerate(training_loader):
-        # Every data instance is an input + label pair
-        inputs, labels = data
-        
-        inputs = inputs.permute(0, 3, 1, 2)
-        labels = labels.permute(0, 3, 1, 2)
-        # Zero your gradients for every batch!
-        optimizer.zero_grad()
+    with tqdm.tqdm(training_loader, unit="batch") as tepoch:
+        for i, data in enumerate(tepoch):
+            # Every data instance is an input + label pair
+            inputs, labels = data
 
-        # print(inputs.shape)
-        # Make predictions for this batch
-        outputs = model(inputs)
+            inputs = inputs.permute(0, 3, 1, 2)
+            labels = labels.permute(0, 3, 1, 2)
+            inputs = inputs.cuda(gpu_device)
+            labels = labels.cuda(gpu_device)
+            # Zero your gradients for every batch!
+            optimizer.zero_grad()
 
-        # Compute the loss and its gradients
-        loss = loss_fn(outputs, labels)
-        loss.backward()
+            # print(inputs.shape)
+            # Make predictions for this batch
+            outputs = model(inputs)
 
-        # Adjust learning weights
-        optimizer.step()
+            # Compute the loss and its gradients
+            loss = loss_fn(outputs, labels)
+            loss.backward()
 
-        # Gather data and report
-        running_loss += loss.item()
-        if i % 1000 == 999:
-            last_loss = running_loss / 1000 # loss per batch
-            print('  batch {} loss: {}'.format(i + 1, last_loss))
-            tb_x = epoch_index * len(training_loader) + i + 1
-            tb_writer.add_scalar('Loss/train', last_loss, tb_x)
-            running_loss = 0.
+            # Adjust learning weights
+            optimizer.step()
+
+            # Gather data and report
+            running_loss += loss.item()
+            if i % 182 == 181:
+                last_loss = running_loss / 182 # loss per batch
+                print('  batch {} loss: {}'.format(i + 1, last_loss))
+                tb_x = epoch_index * len(training_loader) + i + 1
+                tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+                running_loss = 0.
+            # time.sleep(0.1)
+            # print(i)
+            # last_loss = running_loss / batch_size
 
     return last_loss
 
