@@ -1,7 +1,7 @@
 import torch
-from segformer_pytorch import Segformer
+from segformer_pytorch import segformer_pytorch
 
-model = Segformer(
+model = segformer_pytorch.SSFormer(
     dims = (32, 64, 160, 256),      # dimensions of each stage
     heads = (1, 2, 5, 8),           # heads of each stage
     ff_expansion = (8, 8, 4, 4),    # feedforward expansion factor of each stage
