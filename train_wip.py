@@ -12,52 +12,71 @@ import logging
 
 import matplotlib.pyplot as plt
 
-def structure_loss(pred, mask):
-    weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
-    wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce='none')
-    wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
+# def structure_loss(pred, mask):
+#     weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
+#     wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce='none')
+#     wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
 
-    pred = torch.sigmoid(pred)
-    inter = ((pred * mask) * weit).sum(dim=(2, 3))
-    union = ((pred + mask) * weit).sum(dim=(2, 3))
-    wiou = 1 - (inter + 1) / (union - inter + 1)
+#     pred = torch.sigmoid(pred)
+#     inter = ((pred * mask) * weit).sum(dim=(2, 3))
+#     union = ((pred + mask) * weit).sum(dim=(2, 3))
+#     wiou = 1 - (inter + 1) / (union - inter + 1)
 
-    return (wbce + wiou).mean()
+#     return (wbce + wiou).mean()
 
+class structure_loss(torch.nn.Module):
+    def __init__(self, weight=None, size_average=True):
+        super(structure_loss, self).__init__()
 
-def test(model, path, dataset):
+    def forward(self, inputs, targets, smooth=1):
+        
+        #comment out if your model contains a sigmoid or equivalent activation layer
+        inputs = F.sigmoid(inputs)       
+        
+        #flatten label and prediction tensors
+        inputs = inputs.view(-1)
+        targets = targets.view(-1)
+        
+        intersection = (inputs * targets).sum()                            
+        dice_loss = 1 - (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)  
+        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
+        Dice_BCE = BCE + dice_loss
+        
+        return Dice_BCE
 
-    data_path = os.path.join(path, dataset)
-    image_root = '{}/images/'.format(data_path)
-    gt_root = '{}/masks/'.format(data_path)
-    model.eval()
-    num1 = len(os.listdir(gt_root))
-    test_loader = test_dataset(image_root, gt_root, 352)
-    DSC = 0.0
-    for i in range(num1):
-        image, gt, name = test_loader.load_data()
-        gt = np.asarray(gt, np.float32)
-        gt /= (gt.max() + 1e-8)
-        image = image.cuda()
+# def test(model, path, dataset):
 
-        res, res1  = model(image)
-        # eval Dice
-        res = F.upsample(res + res1 , size=gt.shape, mode='bilinear', align_corners=False)
-        res = res.sigmoid().data.cpu().numpy().squeeze()
-        res = (res - res.min()) / (res.max() - res.min() + 1e-8)
-        input = res
-        target = np.array(gt)
-        N = gt.shape
-        smooth = 1
-        input_flat = np.reshape(input, (-1))
-        target_flat = np.reshape(target, (-1))
-        intersection = (input_flat * target_flat)
-        dice = (2 * intersection.sum() + smooth) / (input.sum() + target.sum() + smooth)
-        dice = '{:.4f}'.format(dice)
-        dice = float(dice)
-        DSC = DSC + dice
+#     data_path = os.path.join(path, dataset)
+#     image_root = '{}/images/'.format(data_path)
+#     gt_root = '{}/masks/'.format(data_path)
+#     model.eval()
+#     num1 = len(os.listdir(gt_root))
+#     test_loader = test_dataset(image_root, gt_root, 352)
+#     DSC = 0.0
+#     for i in range(num1):
+#         image, gt, name = test_loader.load_data()
+#         gt = np.asarray(gt, np.float32)
+#         gt /= (gt.max() + 1e-8)
+#         image = image.cuda()
 
-    return DSC / num1
+#         res, res1  = model(image)
+#         # eval Dice
+#         res = F.upsample(res + res1 , size=gt.shape, mode='bilinear', align_corners=False)
+#         res = res.sigmoid().data.cpu().numpy().squeeze()
+#         res = (res - res.min()) / (res.max() - res.min() + 1e-8)
+#         input = res
+#         target = np.array(gt)
+#         N = gt.shape
+#         smooth = 1
+#         input_flat = np.reshape(input, (-1))
+#         target_flat = np.reshape(target, (-1))
+#         intersection = (input_flat * target_flat)
+#         dice = (2 * intersection.sum() + smooth) / (input.sum() + target.sum() + smooth)
+#         dice = '{:.4f}'.format(dice)
+#         dice = float(dice)
+#         DSC = DSC + dice
+
+#     return DSC / num1
 
 
 

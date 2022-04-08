@@ -1,4 +1,5 @@
 import torch
+from dataloader import DataLoaderSegmentation
 from segformer_pytorch import segformer_pytorch
 
 model = segformer_pytorch.SSFormer(
@@ -11,6 +12,11 @@ model = segformer_pytorch.SSFormer(
     num_classes = 4                 # number of segmentation classes
 )
 
-x = torch.randn(1, 3, 256, 256)
+x = torch.randn(1, 3, 512, 512)
 pred = model(x)
+TRAIN_PATH = "/hdd/quangdd/src/dataset_pranet"
+
+train_dataset = DataLoaderSegmentation(TRAIN_PATH)
+training_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+
 print(pred.shape)
