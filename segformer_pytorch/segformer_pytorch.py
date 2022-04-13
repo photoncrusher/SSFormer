@@ -16,43 +16,6 @@ def exists(val):
 def cast_tuple(val, depth):
     return val if isinstance(val, tuple) else (val,) * depth
 
-# classes
-class LocalEmphasis(nn.Module):
-    def __init__(self, act_layer=nn.ReLU, drop=0., dim=768, dim_out = 64*64*4):
-        super().__init__()
-        self.conv1 = nn.Conv2d(dim, dim, 3, 1, 1, bias=True, groups=dim)
-        self.act = act_layer()
-        self.conv2 = nn.Conv2d(dim, dim, 3, 1, 1, bias=True, groups=dim)
-        self.act = act_layer()
-        self.drop = nn.Dropout(drop)
-        self.upsample = nn.Upsample(dim_out)
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
-        elif isinstance(m, nn.Conv2d):
-            fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-            fan_out //= m.groups
-            m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
-            if m.bias is not None:
-                m.bias.data.zero_()
-
-    def forward(self, x, H, W):
-        x = self.conv1(x)
-        x = self.act(x)
-        x = self.conv2(x)
-        x = self.act(x)
-        x = self.drop(x)
-        x = self.upsample(x)
-        
-        return x
-        
 class SSFormer(nn.Module):
     def __init__(
         self,
@@ -60,7 +23,7 @@ class SSFormer(nn.Module):
         dims = (32, 64, 160, 256),
         heads = (1, 2, 4, 8),
         ff_expansion = (8, 8, 4, 4),
-        reduction_ratio = (8, 4, 2, 1),
+        reduction_ratio = (64, 16, 4, 1),
         num_layers = 2,
         channels = 3,
         decoder_dim = 256,
@@ -81,9 +44,9 @@ class SSFormer(nn.Module):
         )
         # self.LE = LocalEmphasis
         self.localemphasis = nn.ModuleList([nn.Sequential(
-            nn.Conv2d(dim, 224, 1),
+            nn.Conv2d(dim, 1024, 1),
             nn.ReLU(),
-            nn.Conv2d(224, decoder_dim, 1),
+            nn.Conv2d(1024, decoder_dim, 1),
             nn.ReLU(),
             nn.Upsample(scale_factor = 2 ** i)
 
@@ -92,7 +55,7 @@ class SSFormer(nn.Module):
 
         self.linear = nn.Linear(decoder_dim * 2, decoder_dim)
         self.final_linear = nn.Linear(decoder_dim, num_classes)
-        # self.final_upsample = nn.Upsample(scale_factor = 4)
+        self.final_upsample = nn.Upsample(scale_factor = 4)
 
 
         
@@ -110,5 +73,5 @@ class SSFormer(nn.Module):
                 le_out = le_out.permute(0,3,1,2)
         le_out = self.final_linear(le_out.permute(0,2,3,1))
         le_out = le_out.permute(0,3,1,2)
-        # le_out = self.final_upsample(le_out)
+        le_out = self.final_upsample(le_out)
         return le_out

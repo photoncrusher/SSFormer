@@ -5,6 +5,9 @@ from dataset import HogeDataset
 from segformer_pytorch import segformer_pytorch
 import torch
 import torchvision
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
 import torch.nn.functional as F
 from dataloader import DataLoaderSegmentation, SemanticSegmentationDataset
 import datetime
@@ -35,7 +38,7 @@ class bce_dice_loss(torch.nn.Module):
         
         #comment out if your model contains a sigmoid or equivalent activation layer
         inputs = F.sigmoid(inputs)       
-        targets = F.sigmoid(targets)  
+        # targets = F.sigmoid(targets)  
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
@@ -47,16 +50,25 @@ class bce_dice_loss(torch.nn.Module):
         
         return Dice_BCE
 
-
+train_transform = A.Compose(
+    [
+        A.Resize(256, 256),
+        A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=30, p=0.5),
+        A.RGBShift(r_shift_limit=25, g_shift_limit=25, b_shift_limit=25, p=0.5),
+        A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.5),
+        A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ToTensorV2(),
+    ]
+)
 loss_fn = bce_dice_loss()
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=decay_rate)
 
 TRAIN_PATH = "/hdd/quangdd/src/dataset_pranet"
-feature_extractor = SegformerFeatureExtractor(reduce_labels=True)
+# feature_extractor = SegformerFeatureExtractor(reduce_labels=True)
 # train_dataset = SemanticSegmentationDataset(root_dir=TRAIN_PATH, feature_extractor=feature_extractor)
 
-train_dataset = DataLoaderSegmentation(TRAIN_PATH)
+train_dataset = DataLoaderSegmentation(TRAIN_PATH, transform=train_transform)
 training_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
 def train_one_epoch(epoch_index, tb_writer):
@@ -79,8 +91,10 @@ def train_one_epoch(epoch_index, tb_writer):
             from image
             '''
             inputs, labels = data
-            inputs = inputs.permute(0,3,1,2)
-            labels = labels.permute(0,3,1,2)
+            inputs = inputs.float()
+            labels = labels.float()
+            # inputs = inputs.permute(0,3,1,2)
+            # labels = labels.permute(0,3,1,2)
 
 
             inputs = inputs.cuda(gpu_device)
@@ -120,7 +134,7 @@ epoch_number = 0
 
 EPOCHS = 200
 
-# best_vloss = 1_000_000.
+best_vloss = 1_000_000.
 
 for epoch in range(EPOCHS):
     print('EPOCH {}:'.format(epoch_number + 1))
@@ -150,9 +164,9 @@ for epoch in range(EPOCHS):
     writer.flush()
 
     # Track best performance, and save the model's state
-    # if avg_vloss < best_vloss:
-    #     best_vloss = avg_vloss
-    model_path = '/hdd/quangdd/ssformer/SSFormer/pretrain/model_{}_{}'.format(timestamp, epoch_number)
-    torch.save(model.state_dict(), model_path)
+    if avg_loss < best_vloss:
+        best_vloss = avg_loss
+        model_path = '/home/quangdd/result_ssformer/model_{}_{}'.format(timestamp, epoch_number)
+        torch.save(model.state_dict(), model_path)
 
     epoch_number += 1
