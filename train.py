@@ -1,44 +1,24 @@
-import time
 import tqdm
-# from dataprepare import BasicDataset, CarvanaDataset, trainGenerator
-from dataset import HogeDataset
-from segformer_pytorch import segformer_pytorch
+from model import ssformer
 import torch
-import torchvision
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 import torch.nn.functional as F
-from dataloader import DataLoaderSegmentation, SemanticSegmentationDataset
+from utils.dataloader import DataLoaderSegmentation
 import datetime
 from torch.utils.data import DataLoader
 from cfg import *
 from torch.utils.tensorboard import SummaryWriter
-from pathlib import Path
-from transformers import SegformerFeatureExtractor
+model = ssformer.SSFormer().cuda(gpu_device)
 
-model = segformer_pytorch.SSFormer().cuda(gpu_device)
-
-# def loss_fn(pred, mask):
-#     weit = 1 + 5 * torch.abs(F.avg_pool2d(mask, kernel_size=31, stride=1, padding=15) - mask)
-#     wbce = F.binary_cross_entropy_with_logits(pred, mask, reduce='none')
-#     wbce = (weit * wbce).sum(dim=(2, 3)) / weit.sum(dim=(2, 3))
-
-#     pred = torch.sigmoid(pred)
-#     inter = ((pred * mask) * weit).sum(dim=(2, 3))
-#     union = ((pred + mask) * weit).sum(dim=(2, 3))
-#     wiou = 1 - (inter + 1) / (union - inter + 1)
-
-#     return (wbce + wiou).mean()
 class bce_dice_loss(torch.nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(bce_dice_loss, self).__init__()
 
     def forward(self, inputs, targets, smooth=1):
         
-        #comment out if your model contains a sigmoid or equivalent activation layer
         inputs = F.sigmoid(inputs)       
-        # targets = F.sigmoid(targets)  
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
@@ -52,7 +32,7 @@ class bce_dice_loss(torch.nn.Module):
 
 train_transform = A.Compose(
     [
-        A.Resize(256, 256),
+        A.Resize(352, 352),
         A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=30, p=0.5),
         A.RGBShift(r_shift_limit=25, g_shift_limit=25, b_shift_limit=25, p=0.5),
         A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.5),
@@ -65,9 +45,6 @@ loss_fn = bce_dice_loss()
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=decay_rate)
 
 TRAIN_PATH = "/hdd/quangdd/src/dataset_pranet"
-# feature_extractor = SegformerFeatureExtractor(reduce_labels=True)
-# train_dataset = SemanticSegmentationDataset(root_dir=TRAIN_PATH, feature_extractor=feature_extractor)
-
 train_dataset = DataLoaderSegmentation(TRAIN_PATH, transform=train_transform)
 training_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
