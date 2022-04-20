@@ -3,7 +3,7 @@ from model import ssformer
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-
+import cv2
 import torch.nn.functional as F
 from utils.dataloader import DataLoaderSegmentation
 import datetime
@@ -32,7 +32,11 @@ class bce_dice_loss(torch.nn.Module):
 
 train_transform = A.Compose(
     [
-        A.Resize(352, 352),
+        A.Resize(512, 512),
+        A.RandomSizedCrop((300, 512), 352, 352),
+        A.RandomScale((-0.7, 0.7), p=0.5, interpolation=1),
+        A.PadIfNeeded(352, 352, border_mode=cv2.BORDER_CONSTANT),
+        A.Resize(352, 352, cv2.INTER_NEAREST),
         A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=30, p=0.5),
         A.RGBShift(r_shift_limit=25, g_shift_limit=25, b_shift_limit=25, p=0.5),
         A.RandomBrightnessContrast(brightness_limit=0.3, contrast_limit=0.3, p=0.5),

@@ -7,8 +7,10 @@ import torch
 from torch.utils.data import DataLoader
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+import glob
+import os
 
-PRETRAIN = "/home/quangdd/result_ssformer/model_20220413_193402_199"
+PRETRAIN = "/home/quangdd/result_ssformer/model_20220420_112429_16"
 train_transform = A.Compose(
     [
         A.Resize(352, 352),
@@ -23,6 +25,14 @@ model.eval()
 TRAIN_PATH = "/home/quangdd/Downloads/TestDataset/CVC-300/"
 train_dataset = DataLoaderSegmentation(TRAIN_PATH, transform=train_transform)
 training_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+
+
+files = glob.glob(os.path.join(TRAIN_PATH, 'old_mask', '*'))
+for f in files:
+    os.remove(f)
+files = glob.glob(os.path.join(TRAIN_PATH, 'new_mask', '*'))
+for f in files:
+    os.remove(f)
 
 with tqdm.tqdm(training_loader, unit="batch") as tepoch:
     for i, data in enumerate(tepoch):
