@@ -12,6 +12,7 @@ def mDice(inputs, targets):
     dice_score = (2.*intersection + 1)/(inputs.sum() + targets.sum() + 1)
     return dice_score
 
+
 def count_mdice(old_mask_path, new_mask_path):
     file_list = glob.glob(os.path.join(new_mask_path, "*.*"))
 

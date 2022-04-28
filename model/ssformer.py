@@ -35,9 +35,9 @@ class SSFormer(nn.Module):
         self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b3.pth")
 
         self.localemphasis = nn.ModuleList([nn.Sequential(
-            nn.Conv2d(dim, decoder_dim, 1),
+            nn.Conv2d(dim, decoder_dim, 3, 1, 1),
             nn.ReLU(),
-            nn.Conv2d(decoder_dim, decoder_dim, 1),
+            nn.Conv2d(decoder_dim, decoder_dim, 3, 1,1),
             nn.ReLU(),
             nn.Upsample(scale_factor = 2 ** i, mode='bilinear')
         ) for i, dim in enumerate(dims)])
