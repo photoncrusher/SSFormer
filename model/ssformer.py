@@ -4,8 +4,8 @@ import torch
 from torch import nn, einsum
 from timm.models.layers import trunc_normal_
 from einops import rearrange, reduce
-from model.pvt2 import PyramidVisionTransformerImpr
-
+from model.pvt2 import PyramidVisionTransformerImpr, pvt_v2_b0, pvt_v2_b3
+from model.mit import MiT
 def exists(val):
     return val is not None
 
@@ -16,13 +16,13 @@ class SSFormer(nn.Module):
     def __init__(
         self,
         *,
-        dims = (32, 64, 160, 256),
+        dims = (64, 128, 320, 512),
         heads = (1, 2, 4, 8),
         ff_expansion = (8, 8, 4, 4),
-        reduction_ratio = (64, 16, 4, 1),
+        reduction_ratio = (8, 4, 2, 1),
         num_layers = 2,
         channels = 3,
-        decoder_dim = 256,
+        decoder_dim = 768,
         num_classes = 1
     ):
         super().__init__()
@@ -30,23 +30,16 @@ class SSFormer(nn.Module):
         dims, heads, ff_expansion, reduction_ratio, num_layers = map(partial(cast_tuple, depth = 4), (dims, heads, ff_expansion, reduction_ratio, num_layers))
         assert all([*map(lambda t: len(t) == 4, (dims, heads, ff_expansion, reduction_ratio, num_layers))]), 'only four stages are allowed, all keyword arguments must be either a single value or a tuple of 4 values'
 
-        self.pvt_v2 = PyramidVisionTransformerImpr(
-            in_chans = channels,
-            embed_dims = dims,
-            num_heads = heads,
-            num_classes= num_classes,
-            mlp_ratios = ff_expansion,
-            sr_ratios = reduction_ratio,
-        )
-        # self.LE = LocalEmphasis
-        self.localemphasis = nn.ModuleList([nn.Sequential(
-            nn.Conv2d(dim, 1024, 1),
-            nn.ReLU(),
-            nn.Conv2d(1024, decoder_dim, 1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor = 2 ** i, mode='bicubic')
+        self.pvt_v2 = pvt_v2_b3(in_chans = channels, num_classes = num_classes)
 
-            # nn.Upsample(int(decoder_dim * decoder_dim * num_classes / 16))
+        self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b3.pth")
+
+        self.localemphasis = nn.ModuleList([nn.Sequential(
+            nn.Conv2d(dim, decoder_dim, 1),
+            nn.ReLU(),
+            nn.Conv2d(decoder_dim, decoder_dim, 1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor = 2 ** i, mode='bilinear')
         ) for i, dim in enumerate(dims)])
 
         self.linear = nn.Linear(decoder_dim * 2, decoder_dim)
@@ -59,7 +52,6 @@ class SSFormer(nn.Module):
         layer_outputs = self.pvt_v2(x)
         le_out = None
         for output, le in zip(reversed(layer_outputs), reversed(self.localemphasis)):
-            # print(output.shape)
             if le_out is None:
                 le_out = le(output)
                 
@@ -70,4 +62,5 @@ class SSFormer(nn.Module):
         le_out = self.final_linear(le_out.permute(0,2,3,1))
         le_out = le_out.permute(0,3,1,2)
         le_out = self.final_upsample(le_out)
+        le_out = torch.sigmoid(le_out)
         return le_out
