@@ -1,5 +1,5 @@
 import tqdm
-from model import ssformer
+from model import gate_inner_former 
 import torch
 from utils.dataloader import DataLoaderSegmentation
 import datetime
@@ -11,7 +11,7 @@ from predict import run_inference
 from eval import count_mdice
 import os
 from torch.utils.tensorboard import SummaryWriter
-model = ssformer.SSFormer().cuda(gpu_device)
+model = gate_inner_former.SSFormer().cuda(gpu_device)
 loss_fn = bce_dice_loss()
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=decay_rate)
