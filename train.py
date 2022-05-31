@@ -64,6 +64,7 @@ timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 writer = SummaryWriter('runs/fashion_trainer_{}'.format(timestamp))
 epoch_number = 0
 best_vdice = 0.
+best_viou = 0.
 EPOCHS = 200
 
 best_vloss = 1_000_000.
@@ -80,8 +81,8 @@ for epoch in range(EPOCHS):
     print('LOSS train {}'.format(avg_loss))
     model.eval()
     run_inference(infer_loader, model)
-    score = count_mdice(os.path.join(OUTPUT_DIR,"old_mask"), os.path.join(OUTPUT_DIR,"new_mask"))
-    print("Val DICE score {}".format(score))
+    score, score2 = count_mdice(os.path.join(OUTPUT_DIR,"old_mask"), os.path.join(OUTPUT_DIR,"new_mask"))
+    print("Val DICE score {}, val IOU score {}".format(score, score2))
     writer.add_scalars('Training Loss',
                     { 'Training' : avg_loss },
                     epoch_number + 1)
@@ -90,7 +91,14 @@ for epoch in range(EPOCHS):
     # Track best performance, and save the model's state
     if score > best_vdice:
         best_vdice = score
-        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}'.format(epoch_number, best_vdice)
+        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, best_vdice, best_viou)
         torch.save(model.state_dict(), model_path)
+    
+    # Track best performance, and save the model's state
+    elif score2 > best_viou:
+        best_viou = score2
+        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, best_vdice, best_viou)
+        torch.save(model.state_dict(), model_path)
+
 
     epoch_number += 1

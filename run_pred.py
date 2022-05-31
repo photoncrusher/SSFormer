@@ -3,7 +3,10 @@
 import cv2
 import tqdm
 from utils.dataloader import DataLoaderSegmentation
-from model.ssformer import SSFormer
+# from model.ssformer import SSFormer
+# from model.inner_former import SSFormer
+# from model.gate_former import SSFormer
+from model.gate_inner_former import SSFormer
 import torch
 from torch.utils.data import DataLoader
 import os
@@ -42,5 +45,5 @@ def run_inference(infer_loader, model):
             cv2.imwrite(path_2, out)
 
 run_inference(infer_loader, model)
-score = count_mdice(os.path.join(OUTPUT_DIR, 'old_mask'), os.path.join(OUTPUT_DIR, 'new_mask'))
-print(score)
+score, score2 = count_mdice(os.path.join(OUTPUT_DIR, 'old_mask'), os.path.join(OUTPUT_DIR, 'new_mask'))
+print(score, score2)
