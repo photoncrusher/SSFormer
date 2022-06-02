@@ -8,6 +8,7 @@ from model.pvt2 import PyramidVisionTransformerImpr, pvt_v2_b0, pvt_v2_b3
 from model.mit import MiT
 from mmcv.cnn import ConvModule
 import math
+from utils.show_demo import save_review_image
 from model.modules.highway_gate import Highway
 def exists(val):
     return val is not None
@@ -55,7 +56,7 @@ class SSFormer(nn.Module):
         self.apply(self._init_weights)
         self.pvt_v2 = pvt_v2_b0(in_chans = channels, num_classes = num_classes)
         self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b0.pth")
-    
+        self.index = 0    
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
@@ -105,4 +106,12 @@ class SSFormer(nn.Module):
         output = self.final_upsample(output)
 
         output = torch.sigmoid(output)
+        save_review_image(x, "fx", "a{}.png".format(self.index))
+        save_review_image(output_le_3, "f3", "a{}.png".format(self.index))
+        save_review_image(output_le_2, "f2", "a{}.png".format(self.index))
+        save_review_image(output_cat_23, "f23", "a{}.png".format(self.index))
+        save_review_image(output_cat_123, "f123", "a{}.png".format(self.index))
+        self.index += 1
+
+
         return output 

@@ -18,14 +18,15 @@ class SSFormer(nn.Module):
     def __init__(
         self,
         *,
-        dims = (64, 128, 320, 512),
-        # dims = (32, 64, 160, 256),
+        # dims = (64, 128, 320, 512),
+        dims = (32, 64, 160, 256),
         heads = (1, 2, 4, 8),
         ff_expansion = (8, 8, 4, 4),
         reduction_ratio = (8, 4, 2, 1),
         num_layers = 2,
         channels = 3,
-        decoder_dim = 768,
+        # decoder_dim = 768,
+        decoder_dim = 256,
         num_classes = 1
     ):
         super().__init__()
@@ -51,8 +52,9 @@ class SSFormer(nn.Module):
 
         self.highway = Highway(decoder_dim*2, 3)
         self.apply(self._init_weights)
-        self.pvt_v2 = pvt_v2_b3(in_chans = channels, num_classes = num_classes)
-        self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b3.pth")
+        self.pvt_v2 = pvt_v2_b0(in_chans = channels, num_classes = num_classes)
+        # self.pvt_v2 = pvt_v2_b3(in_chans = channels, num_classes = num_classes)
+        # self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b3.pth")
     
         self.aa_kernel_1 = AA_kernel(decoder_dim, decoder_dim)
         self.aa_kernel_2 = AA_kernel(decoder_dim, decoder_dim)

@@ -4,8 +4,9 @@ import torch
 from torch import nn, einsum
 from timm.models.layers import trunc_normal_
 from einops import rearrange, reduce
-from model.pvt2 import pvt_v2_b0
+from model.pvt2 import pvt_v2_b0, pvt_v2_b2
 from model.modules.axial_attention import AA_kernel
+from model.modules.highway_gate import Highway
 import math
 from utils.show_demo import save_review_image
 def exists(val):
@@ -50,8 +51,10 @@ class SSFormer(nn.Module):
         self.dropout = nn.Dropout(0.1)
 
         self.apply(self._init_weights)
+        # self.pvt_v2 = pvt_v2_b2(in_chans = channels, num_classes = num_classes)
         self.pvt_v2 = pvt_v2_b0(in_chans = channels, num_classes = num_classes)
         self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b0.pth")
+        # self.pvt_v2.init_weights("/hdd/quangdd/ssformer/SSFormer/pretrain/pvt_v2_b2.pth")
     
         self.aa_kernel_1 = AA_kernel(decoder_dim, decoder_dim)
         self.aa_kernel_2 = AA_kernel(decoder_dim, decoder_dim)
@@ -75,13 +78,17 @@ class SSFormer(nn.Module):
 
         
     def forward(self, x):
+
+        save_review_image(x, "fx", "a{}.png".format(self.index))
         layer_outputs = self.pvt_v2(x)
 
         output_raw_3 = layer_outputs[3]
         output_le_3 = self.localemphasis[3](output_raw_3)
+        save_review_image(output_le_3, "f3", "a{}.png".format(self.index))
 
         output_raw_2 = layer_outputs[2]
         output_le_2 = self.localemphasis[2](output_raw_2)
+        save_review_image(output_le_2, "f2", "a{}.png".format(self.index))
 
         output_raw_1 = layer_outputs[1]
         output_le_1 = self.localemphasis[1](output_raw_1)
@@ -89,14 +96,26 @@ class SSFormer(nn.Module):
         output_raw_0 = layer_outputs[0]
         output_le_0 = self.localemphasis[0](output_raw_0)
 
+        output_attn_3 = self.aa_kernel_1(output_le_3)
+        output_rev_3 = -1*(torch.sigmoid(output_le_3)) + 1
+        output_reverse_3 = output_rev_3.mul(output_attn_3)
+        
         output_cat_23 = torch.cat([output_le_2, output_le_3], dim=1)
         output_cat_23 = self.linear_1(output_cat_23.permute(0,2,3,1)).permute(0,3,1,2)
-        output_cat_23 = torch.mul(self.aa_kernel_1(output_cat_23), output_cat_23)
-        
+        output_cat_23 = torch.sigmoid(output_cat_23)
+        output_cat_23 = torch.add(output_cat_23, output_reverse_3)
+
+        save_review_image(output_cat_23, "f23", "a{}.png".format(self.index))
+        output_attn_2 = self.aa_kernel_2(output_le_2)
+        output_rev_2 = -1*(torch.sigmoid(output_le_2)) + 1
+        output_reverse_2 = output_rev_2.mul(output_attn_2)
+    
         output_cat_123 = torch.cat([output_le_1, output_cat_23], dim=1)
         output_cat_123 = self.linear_2(output_cat_123.permute(0,2,3,1)).permute(0,3,1,2)
-        output_cat_123 = torch.mul(self.aa_kernel_2(output_cat_123), output_cat_123)
+        output_cat_123 = torch.sigmoid(output_cat_123)
+        output_cat_123 = torch.add(output_cat_123, output_reverse_2)
 
+        save_review_image(output_cat_123, "f123", "a{}.png".format(self.index))
         output_cat_0123 = torch.cat([output_le_0, output_cat_123], dim=1)
         output_cat_0123 = self.linear_3(output_cat_0123.permute(0,2,3,1)).permute(0,3,1,2)
 
@@ -106,12 +125,5 @@ class SSFormer(nn.Module):
         output = self.final_upsample(output)
 
         output = torch.sigmoid(output)
-        save_review_image(x, "fx", "a{}.png".format(self.index))
-        save_review_image(output_le_3, "f3", "a{}.png".format(self.index))
-        save_review_image(output_le_2, "f2", "a{}.png".format(self.index))
-        save_review_image(output_cat_23, "f23", "a{}.png".format(self.index))
-        save_review_image(output_cat_123, "f123", "a{}.png".format(self.index))
         self.index += 1
-
-
         return output 
