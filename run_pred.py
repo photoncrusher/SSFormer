@@ -5,8 +5,9 @@ import tqdm
 from utils.dataloader import DataLoaderSegmentation
 # from model.ssformer import SSFormer
 # from model.inner_former import SSFormer
-# from model.gate_former import SSFormer
-from model.gate_inner_former import SSFormer
+from model.gate_former import SSFormer
+# from model.gate_inner_former import SSFormer
+# from model.boundary_former import SSFormer
 import torch
 from torch.utils.data import DataLoader
 import os
@@ -14,7 +15,7 @@ from shutil import rmtree, copy2
 from infer_cfg import PRETRAIN, INFER_IMG_PATH, OUTPUT_DIR
 from cfg import infer_transform, gpu_device
 from eval import count_mdice
-
+from utils.show_demo import vstack_image
 model = SSFormer().cuda(gpu_device)
 model.load_state_dict(torch.load(PRETRAIN))
 model.eval()
@@ -47,3 +48,4 @@ def run_inference(infer_loader, model):
 run_inference(infer_loader, model)
 score, score2 = count_mdice(os.path.join(OUTPUT_DIR, 'old_mask'), os.path.join(OUTPUT_DIR, 'new_mask'))
 print(score, score2)
+vstack_image()

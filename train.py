@@ -1,5 +1,6 @@
 import tqdm
-from model import gate_inner_former 
+# from model import gate_inner_former 
+from model import boundary_former
 import torch
 from utils.dataloader import DataLoaderSegmentation
 import datetime
@@ -11,7 +12,7 @@ from predict import run_inference
 from eval import count_mdice
 import os
 from torch.utils.tensorboard import SummaryWriter
-model = gate_inner_former.SSFormer().cuda(gpu_device)
+model = boundary_former.SSFormer().cuda(gpu_device)
 loss_fn = bce_dice_loss()
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=decay_rate)
@@ -91,13 +92,13 @@ for epoch in range(EPOCHS):
     # Track best performance, and save the model's state
     if score > best_vdice:
         best_vdice = score
-        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, best_vdice, best_viou)
+        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, score, score2)
         torch.save(model.state_dict(), model_path)
     
     # Track best performance, and save the model's state
     elif score2 > best_viou:
         best_viou = score2
-        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, best_vdice, best_viou)
+        model_path = '/home/quangdd/result_ssformer/pvtv2-b0-pretrain/model_{}_{}_{}'.format(epoch_number, score, score2)
         torch.save(model.state_dict(), model_path)
 
 

@@ -3,7 +3,7 @@ from albumentations.pytorch import ToTensorV2
 # from albumentations.augmentations import transforms
 gpu_device = 1
 
-batch_size = 8 
+batch_size = 4 
 learning_rate = 1e-4
 decay_rate = 1e-1
 
