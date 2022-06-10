@@ -111,6 +111,8 @@ class SSFormer(nn.Module):
         save_review_image(output_le_2, "f2", "a{}.png".format(self.index))
         save_review_image(output_cat_23, "f23", "a{}.png".format(self.index))
         save_review_image(output_cat_123, "f123", "a{}.png".format(self.index))
+        save_review_image(output_cat_0123, "f0123", "a{}.png".format(self.index))
+        save_review_image(output, "output", "a{}.png".format(self.index))
         self.index += 1
 
 

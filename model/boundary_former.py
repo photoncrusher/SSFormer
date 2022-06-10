@@ -121,8 +121,11 @@ class SSFormer(nn.Module):
 
         output_cat_0123 = self.dropout(output_cat_0123)
 
+        save_review_image(output_cat_0123, "f0123", "a{}.png".format(self.index))
         output = self.final_linear(output_cat_0123.permute(0,2,3,1)).permute(0,3,1,2)
         output = self.final_upsample(output)
+
+        save_review_image(output, "output", "a{}.png".format(self.index))
 
         output = torch.sigmoid(output)
         self.index += 1

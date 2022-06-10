@@ -23,6 +23,8 @@ def vstack_image():
     f3  = os.path.join(PATH, "f3")
     f23  = os.path.join(PATH, "f23")
     f123  = os.path.join(PATH, "f123")
+    f0123 = os.path.join(PATH, "f0123")
+    fout = os.path.join(PATH, "output")
     for path in os.listdir(f2):
         try:
             imgx = cv2.imread(os.path.join(fx, path), 1)
@@ -30,7 +32,9 @@ def vstack_image():
             img3 = cv2.imread(os.path.join(f3, path), 1)
             img23 = cv2.imread(os.path.join(f23, path), 1)
             img123 = cv2.imread(os.path.join(f123, path), 1)
-            img = np.hstack((imgx, img2,img3,img23,img123))
+            img0123 = cv2.imread(os.path.join(f0123, path), 1)
+            out = cv2.imread(os.path.join(fout, path),1)
+            img = np.hstack((imgx, img2,img3,img23,img123, img0123, out))
             cv2.imwrite(os.path.join(PATH, "f_all", path), img)
         except:
             continue
